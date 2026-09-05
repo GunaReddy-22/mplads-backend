@@ -43,16 +43,30 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/inspections', inspectionRoutes);
 app.use('/api/data-quality', dataQualityRoutes);
 
+import { initializeAndSeedDatabase } from './services/seedService';
+
 // Global Error Handler
 app.use(errorHandler);
 
 // Start server
-app.listen(config.port, () => {
-  console.log(`=================================================`);
-  console.log(`🚀 MPLADS AI Backend Service Active on Port ${config.port}`);
-  console.log(`📡 Base API URL: http://localhost:${config.port}/api`);
-  console.log(`🛡️  Auth: Enabled | Mode: Prototype Demo`);
-  console.log(`=================================================`);
-});
+const startServer = async () => {
+  try {
+    console.log('🔄 Checking database and seed state...');
+    await initializeAndSeedDatabase();
+  } catch (err: any) {
+    console.error('⚠️ Seed note:', err.message);
+  }
+
+  app.listen(config.port, () => {
+    console.log(`=================================================`);
+    console.log(`🚀 MPLADS AI Backend Service Active on Port ${config.port}`);
+    console.log(`📡 Base API URL: http://localhost:${config.port}/api`);
+    console.log(`🛡️  Auth: Enabled | Mode: Prototype Demo`);
+    console.log(`=================================================`);
+  });
+};
+
+startServer();
 
 export default app;
+

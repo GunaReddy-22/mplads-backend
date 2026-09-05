@@ -1,1 +1,1 @@
-web: npm run deploy:railway
+web: npm start
