@@ -1,0 +1,190 @@
+// PostgreSQL schema for MPLADS AI Production / PostGIS
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String
+  name       String
+  role       String   @default("CENTRAL_ADMIN")
+  department String   @default("Ministry of Statistics & Programme Implementation")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model State {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  code      String     @unique
+  districts District[]
+  works     Work[]
+}
+
+model District {
+  id        String               @id @default(uuid())
+  name      String
+  code      String
+  stateId   String
+  state     State                @relation(fields: [stateId], references: [id])
+  latitude  Float
+  longitude Float
+  agencies  ImplementingAgency[]
+  works     Work[]
+}
+
+model ImplementingAgency {
+  id         String    @id @default(uuid())
+  name       String
+  code       String
+  districtId String?
+  district   District? @relation(fields: [districtId], references: [id])
+  works      Work[]
+}
+
+model Work {
+  id                     String             @id @default(uuid())
+  workId                 String             @unique
+  workName               String
+  description            String
+  category               String
+  
+  stateId                String
+  state                  State              @relation(fields: [stateId], references: [id])
+  districtId             String
+  district               District           @relation(fields: [districtId], references: [id])
+  agencyId               String
+  agency                 ImplementingAgency @relation(fields: [agencyId], references: [id])
+
+  sanctionDate           DateTime
+  startDate              DateTime?
+  expectedCompletionDate DateTime
+  actualCompletionDate   DateTime?
+  status                 String
+
+  sanctionAmount         Float
+  estimatedCost          Float
+  expenditureAmount      Float
+  physicalProgress       Float
+  financialProgress      Float
+
+  latitude               Float
+  longitude              Float
+  address                String
+  village                String?
+
+  isHeroCase             Boolean            @default(false)
+  isSimilarPair          Boolean            @default(false)
+  peerBenchmarkCost      Float?
+
+  riskAssessment         RiskAssessment?
+  similarAsPrimary       SimilarWork[]      @relation("PrimaryWork")
+  similarAsCandidate     SimilarWork[]      @relation("CandidateWork")
+  alerts                 Alert[]
+  inspections            Inspection[]
+
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+}
+
+model RiskAssessment {
+  id                String   @id @default(uuid())
+  workId            String   @unique
+  work              Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  
+  anomalyScore      Float
+  costScore         Float
+  delayScore        Float
+  duplicateScore    Float
+  paymentScore      Float
+  geoScore          Float
+  
+  overallScore      Float
+  riskLevel         String
+
+  reasons           String
+  contributions     String
+  recommendedAction String
+  modelVersion      String   @default("v1.2.4-hybrid-ensemble")
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model SimilarWork {
+  id              String   @id @default(uuid())
+  primaryWorkId   String
+  primaryWork     Work     @relation("PrimaryWork", fields: [primaryWorkId], references: [id], onDelete: Cascade)
+  candidateWorkId String
+  candidateWork   Work     @relation("CandidateWork", fields: [candidateWorkId], references: [id], onDelete: Cascade)
+  
+  similarityScore Float
+  distanceKm      Float
+  categoryMatch   Boolean  @default(true)
+  costSimilarity  Float
+  reasons         String
+
+  createdAt       DateTime @default(now())
+}
+
+model Alert {
+  id          String    @id @default(uuid())
+  workId      String
+  work        Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String
+  riskLevel   String
+  alertType   String
+  status      String    @default("NEW")
+  resolvedBy  String?
+  resolvedAt  DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Inspection {
+  id           String   @id @default(uuid())
+  workId       String
+  work         Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  
+  officerName  String
+  officerRole  String
+  status       String
+  remarks      String
+  evidenceUrl  String?
+  evidenceHash String?
+  latitude     Float?
+  longitude    Float?
+  verifiedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  entityType  String
+  entityId    String
+  action      String
+  performedBy String
+  details     String
+  timestamp   DateTime @default(now())
+}
+
+model DataImport {
+  id             String   @id @default(uuid())
+  fileName       String
+  totalRecords   Int
+  validRecords   Int
+  invalidRecords Int
+  qualityScore   Float
+  status         String
+  importedAt     DateTime @default(now())
+}

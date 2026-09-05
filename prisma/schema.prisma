@@ -1,0 +1,192 @@
+// Prisma schema for MPLADS AI Decision Intelligence Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String
+  name       String
+  role       String   @default("CENTRAL_ADMIN") // CENTRAL_ADMIN, STATE_AUTHORITY, DISTRICT_OFFICER, AUDITOR
+  department String   @default("Ministry of Statistics & Programme Implementation")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model State {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  code      String     @unique
+  districts District[]
+  works     Work[]
+}
+
+model District {
+  id        String               @id @default(uuid())
+  name      String
+  code      String
+  stateId   String
+  state     State                @relation(fields: [stateId], references: [id])
+  latitude  Float
+  longitude Float
+  agencies  ImplementingAgency[]
+  works     Work[]
+}
+
+model ImplementingAgency {
+  id         String    @id @default(uuid())
+  name       String
+  code       String
+  districtId String?
+  district   District? @relation(fields: [districtId], references: [id])
+  works      Work[]
+}
+
+model Work {
+  id                     String             @id @default(uuid())
+  workId                 String             @unique // e.g. MPLADS-00421
+  workName               String
+  description            String
+  category               String             // Roads, Water Facilities, Community Halls, Schools, Health Centres, Drainage, Street Lighting, Public Infrastructure
+  
+  stateId                String
+  state                  State              @relation(fields: [stateId], references: [id])
+  districtId             String
+  district               District           @relation(fields: [districtId], references: [id])
+  agencyId               String
+  agency                 ImplementingAgency @relation(fields: [agencyId], references: [id])
+
+  sanctionDate           DateTime
+  startDate              DateTime?
+  expectedCompletionDate DateTime
+  actualCompletionDate   DateTime?
+  status                 String             // ONGOING, COMPLETED, DELAYED, SANCTIONED
+
+  sanctionAmount         Float              // in INR
+  estimatedCost          Float              // in INR
+  expenditureAmount      Float              // in INR
+  physicalProgress       Float              // 0 to 100 (%)
+  financialProgress      Float              // 0 to 100 (%)
+
+  latitude               Float
+  longitude              Float
+  address                String
+  village                String?
+
+  isHeroCase             Boolean            @default(false)
+  isSimilarPair          Boolean            @default(false)
+  peerBenchmarkCost      Float?             // Expected median cost for category/district
+
+  riskAssessment         RiskAssessment?
+  similarAsPrimary       SimilarWork[]      @relation("PrimaryWork")
+  similarAsCandidate     SimilarWork[]      @relation("CandidateWork")
+  alerts                 Alert[]
+  inspections            Inspection[]
+
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+}
+
+model RiskAssessment {
+  id                String   @id @default(uuid())
+  workId            String   @unique
+  work              Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  
+  // Component signals (0 - 100)
+  anomalyScore      Float    // Multivariate Isolation Forest signal
+  costScore         Float    // Peer cost deviation benchmark signal
+  delayScore        Float    // Timeline & progress delay prediction
+  duplicateScore    Float    // NLP Semantic + GIS similarity signal
+  paymentScore      Float    // Expenditure velocity anomaly signal
+  geoScore          Float    // Spatial proximity / concentration signal
+  
+  overallScore      Float    // Composite 0 - 100
+  riskLevel         String   // LOW (0-39), MEDIUM (40-69), HIGH (70-100)
+
+  // Explainability (XAI)
+  reasons           String   // JSON string of human-readable explanation strings
+  contributions     String   // JSON string of SHAP/signal point contributions (+24 cost, +19 delay, etc.)
+  recommendedAction String   // PRIORITY_VERIFICATION, ROUTINE_INSPECTION, DESK_REVIEW, MONITOR
+  modelVersion      String   @default("v1.2.4-hybrid-ensemble")
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model SimilarWork {
+  id              String   @id @default(uuid())
+  primaryWorkId   String
+  primaryWork     Work     @relation("PrimaryWork", fields: [primaryWorkId], references: [id], onDelete: Cascade)
+  candidateWorkId String
+  candidateWork   Work     @relation("CandidateWork", fields: [candidateWorkId], references: [id], onDelete: Cascade)
+  
+  similarityScore Float    // e.g. 91.4%
+  distanceKm      Float    // e.g. 1.4 km
+  categoryMatch   Boolean  @default(true)
+  costSimilarity  Float    // percentage cost match
+  reasons         String   // JSON string or text summary
+
+  createdAt       DateTime @default(now())
+}
+
+model Alert {
+  id          String    @id @default(uuid())
+  workId      String
+  work        Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String
+  riskLevel   String    // HIGH, MEDIUM, LOW
+  alertType   String    // COST_DEVIATION, PROGRESS_MISMATCH, POTENTIAL_SIMILAR, DELAY_RISK, GEO_CLUSTER
+  status      String    @default("NEW") // NEW, UNDER_REVIEW, RESOLVED, DISMISSED
+  resolvedBy  String?
+  resolvedAt  DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Inspection {
+  id           String   @id @default(uuid())
+  workId       String
+  work         Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  
+  officerName  String
+  officerRole  String
+  status       String   // VERIFIED_NO_ISSUE, REQUIRES_CLARIFICATION, FIELD_INSPECTION_REQUIRED, DOCUMENT_REVIEW_REQUIRED, ESCALATED
+  remarks      String
+  evidenceUrl  String?
+  evidenceHash String?  // SHA-256 evidence integrity hash
+  latitude     Float?
+  longitude    Float?
+  verifiedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  entityType  String   // WORK, RISK_ASSESSMENT, INSPECTION, ALERT, USER, SYSTEM
+  entityId    String
+  action      String   // CREATED, UPDATED, INSPECTED, RESOLVED, FLAG_OVERRIDDEN
+  performedBy String
+  details     String   // JSON string details
+  timestamp   DateTime @default(now())
+}
+
+model DataImport {
+  id             String   @id @default(uuid())
+  fileName       String
+  totalRecords   Int
+  validRecords   Int
+  invalidRecords Int
+  qualityScore   Float    // e.g. 98.6%
+  status         String   // COMPLETED, COMPLETED_WITH_WARNINGS, FAILED
+  importedAt     DateTime @default(now())
+}
