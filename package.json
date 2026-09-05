@@ -10,7 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "seed": "tsx prisma/seed.ts",
-    "deploy:railway": "node -e \"const fs=require('fs');let s=fs.readFileSync('prisma/schema.prisma','utf8');if(process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres')){fs.writeFileSync('prisma/schema.prisma',s.replace('provider = \\\"sqlite\\\"','provider = \\\"postgresql\\\"'))}\" && prisma generate && prisma db push && npm run seed && npm start"
+    "deploy:railway": "node scripts/deploy.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
