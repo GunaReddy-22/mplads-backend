@@ -189,6 +189,12 @@ const WORK_TEMPLATES: Record<string, string[]> = {
 async function main() {
   console.log('--- Starting MPLADS AI Database Seeding ---');
 
+  const existingCount = await prisma.work.count().catch(() => 0);
+  if (existingCount >= 100) {
+    console.log(`✅ Database already contains ${existingCount} works. Skipping re-seed.`);
+    return;
+  }
+
   // 1. Clean existing records
   await prisma.inspection.deleteMany();
   await prisma.alert.deleteMany();
