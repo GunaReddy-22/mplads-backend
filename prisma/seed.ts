@@ -214,7 +214,7 @@ async function main() {
     data: {
       email: 'admin@mplads.ai',
       password: passwordHash,
-      name: 'Dr. Ramesh Sharma (IAS)',
+      name: 'Guna',
       role: 'CENTRAL_ADMIN',
       department: 'Ministry of Statistics and Programme Implementation (MoSPI)',
     },

@@ -24,7 +24,7 @@ export const createInspection = async (req: AuthRequest, res: Response) => {
     const rawData = `${work.workId}-${evidenceFileName || 'inspection-photo.jpg'}-${Date.now()}-${remarks}`;
     const evidenceHash = crypto.createHash('sha256').update(rawData).digest('hex');
 
-    const officerName = req.user?.name || 'Dr. Ramesh Sharma (IAS)';
+    const officerName = req.user?.name || 'Guna';
     const officerRole = req.user?.role || 'District Collector / Designated Officer';
 
     const inspection = await prisma.inspection.create({
