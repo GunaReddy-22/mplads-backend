@@ -19,6 +19,10 @@ export const getMapWorks = async (req: Request, res: Response) => {
 
     const works = await prisma.work.findMany({
       where,
+      orderBy: [
+        { isHeroCase: 'desc' },
+        { riskAssessment: { overallScore: 'desc' } },
+      ],
       select: {
         id: true,
         workId: true,

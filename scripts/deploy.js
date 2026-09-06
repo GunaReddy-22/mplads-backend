@@ -10,12 +10,26 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+const fs = require('fs');
+const path = require('path');
+
 function run(cmd) {
   console.log(`> Running: ${cmd}`);
   execSync(cmd, { stdio: 'inherit', env: process.env });
 }
 
 try {
+  // Ensure schema provider matches DATABASE_URL
+  const schemaPath = path.resolve(__dirname, '../prisma/schema.prisma');
+  if (fs.existsSync(schemaPath)) {
+    let schema = fs.readFileSync(schemaPath, 'utf8');
+    if (process.env.DATABASE_URL.startsWith('postgres://') || process.env.DATABASE_URL.startsWith('postgresql://')) {
+      console.log('🔄 Configuring Prisma for PostgreSQL...');
+      schema = schema.replace(/provider\s*=\s*"sqlite"/g, 'provider = "postgresql"');
+      fs.writeFileSync(schemaPath, schema, 'utf8');
+    }
+  }
+
   console.log('1. Generating Prisma Client for PostgreSQL...');
   run('npx prisma generate');
 
